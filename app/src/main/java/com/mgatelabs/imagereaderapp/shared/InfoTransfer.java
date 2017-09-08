@@ -7,7 +7,9 @@ import java.util.Map;
  */
 
 public class InfoTransfer {
-    Map<String, StateTransfer> states;
+    private Map<String, StateTransfer> states;
+
+    private MapTransfer map;
 
     public Map<String, StateTransfer> getStates() {
         return states;
@@ -15,5 +17,13 @@ public class InfoTransfer {
 
     public void setStates(Map<String, StateTransfer> states) {
         this.states = states;
+    }
+
+    public MapTransfer getMap() {
+        return map;
+    }
+
+    public void setMap(MapTransfer map) {
+        this.map = map;
     }
 }
