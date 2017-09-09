@@ -6,7 +6,9 @@ Android application for speeding up TMR farming with FFBExecute.
 This app sits in the background listening on port 8080 for the following commands:
 
 ## /setup
-Push configuration details over to the app, since it is empty and requires data
+Push configuration details over to the app
+* State & Screen details
+* Map reading details
 
 ## /check/{stateId}
 Determine if the saved framebuffer matches any known image states
