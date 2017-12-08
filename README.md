@@ -5,6 +5,10 @@ Android application for speeding up TMR farming with FFBExecute.
 
 This app sits in the background listening on port 8080 for the following commands:
 
+## Is it needed?
+
+Technically, the helper is not needed, but without the helper, it will take typically 2 seconds to grab the screen.  With the helper, it can grab the screen in under 0.25 seconds.
+
 ## /setup
 Push configuration details over to the app
 * State & Screen details
