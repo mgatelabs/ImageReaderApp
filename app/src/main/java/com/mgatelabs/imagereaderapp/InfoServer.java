@@ -1,6 +1,8 @@
 package com.mgatelabs.imagereaderapp;
 
 import android.os.Environment;
+import android.util.Base64;
+import android.util.Log;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mgatelabs.imagereaderapp.shared.Closer;
@@ -14,6 +16,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.List;
 import java.util.Map;
 
 import fi.iki.elonen.NanoHTTPD;
@@ -69,10 +72,13 @@ public class InfoServer extends NanoHTTPD {
 
         } else if (uri.startsWith("/check/")) {
             if (states == null) {
-                return newFixedLengthResponse(Response.Status.EXPECTATION_FAILED, "application/json", "{\"status\":\"FAIL\",\"msg\":\"" +"please run /setup first" + "\"}");
+                return newFixedLengthResponse(Response.Status.EXPECTATION_FAILED, "application/json", "{\"status\":\"FAIL\",\"msg\":\"" + "please run /setup first" + "\"}");
             }
 
-            String stateId = session.getUri().substring(7);
+            int    debugIndex = -1;
+            String debugName  = getParameter("screen-id", "", session.getParameters());
+
+            String        stateId       = session.getUri().substring(7);
             StateTransfer stateTransfer = states.get(stateId);
 
             if (stateTransfer == null) {
@@ -80,17 +86,20 @@ public class InfoServer extends NanoHTTPD {
             }
 
             FileInputStream fileInputStream = null;
-            boolean [] success = new boolean[stateTransfer.getScreenIds().size()];
+            boolean[]       success         = new boolean[stateTransfer.getScreenIds().size()];
             for (int i = 0; i < success.length; i++) {
+                if (debugName.length() > 0 && stateTransfer.getScreenIds().get(i).equalsIgnoreCase(debugName)) {
+                    debugIndex = i;
+                }
                 success[i] = true;
             }
 
             try {
                 fileInputStream = new FileInputStream(Environment.getExternalStorageDirectory().getAbsolutePath() + "/framebuffer.raw");
 
-                byte [] temp = new byte [3];
-                int len;
-                for (PointTransfer pointTransfer: stateTransfer.getPoints()) {
+                byte[] temp = new byte[3];
+                int    len;
+                for (PointTransfer pointTransfer : stateTransfer.getPoints()) {
 
                     if (pointTransfer.getOffset() > 0) {
                         fileInputStream.skip(pointTransfer.getOffset());
@@ -99,7 +108,19 @@ public class InfoServer extends NanoHTTPD {
                             throw new RuntimeException("Invalid byte read");
                         }
                     }
-                    success[pointTransfer.getIndex()] &= (within(temp[0], pointTransfer.getA(), 6) && within(temp[1], pointTransfer.getB(), 6) && within(temp[2], pointTransfer.getC(), 6));
+
+                    if (!success[pointTransfer.getIndex()]) continue;
+
+                    success[pointTransfer.getIndex()] &= (within((0xff) & temp[0], (0xff) & pointTransfer.getA(), 6) && within((0xff) & temp[1], (0xff) & pointTransfer.getB(), 6) && within((0xff) & temp[2], (0xff) & pointTransfer.getC(), 6));
+
+                    if (pointTransfer.getIndex() == debugIndex) {
+
+                        final boolean w1 = within((0xff) & temp[0], (0xff) & pointTransfer.getA(), 6);
+                        final boolean w2 = within((0xff) & temp[1], (0xff) & pointTransfer.getB(), 6);
+                        final boolean w3 = within((0xff) & temp[2], (0xff) & pointTransfer.getC(), 6);
+
+                        Log.d("IS", "S = " + success[pointTransfer.getIndex()] + " (" + w1 + "[" + (0xff & pointTransfer.getA()) + "]" + "," + w2 + "[" + (0xff & pointTransfer.getB()) + "]" + "," + w3 + "[" + (0xff & pointTransfer.getC()) + "]" + ")");
+                    }
                 }
             } catch (Exception ex) {
                 return newFixedLengthResponse(Response.Status.EXPECTATION_FAILED, "application/json", "{\"status\":\"FAIL\",\"msg\":\"" + ex.getLocalizedMessage() + "\"}");
@@ -108,7 +129,7 @@ public class InfoServer extends NanoHTTPD {
             }
 
             StringBuilder successList = new StringBuilder();
-            int i = 0;
+            int           i           = 0;
             for (int j = 0; j < success.length; j++) {
                 if (success[j]) {
                     if (i > 0) successList.append(",");
@@ -120,15 +141,15 @@ public class InfoServer extends NanoHTTPD {
             return newFixedLengthResponse(Response.Status.OK, "application/json", "{\"status\":\"OK\",\"screens\":[" + successList + "]}");
         } else if (uri.startsWith("/pixel/")) {
             String pixelValue = session.getUri().substring(7);
-            int offset = Integer.parseInt(pixelValue);
+            int    offset     = Integer.parseInt(pixelValue);
 
             FileInputStream fileInputStream = null;
 
             try {
                 fileInputStream = new FileInputStream(Environment.getExternalStorageDirectory().getAbsolutePath() + "/framebuffer.raw");
 
-                byte [] temp = new byte [3];
-                int len;
+                byte[] temp = new byte[3];
+                int    len;
 
                 fileInputStream.skip(offset);
                 len = fileInputStream.read(temp);
@@ -144,6 +165,24 @@ public class InfoServer extends NanoHTTPD {
                 Closer.close(fileInputStream);
             }
 
+        } else if (uri.startsWith("/head")) {
+            FileInputStream fileInputStream = null;
+            try {
+                fileInputStream = new FileInputStream(Environment.getExternalStorageDirectory().getAbsolutePath() + "/framebuffer.raw");
+
+                byte[] temp = new byte[128];
+
+                fileInputStream.read(temp);
+
+                String temoBase = Base64.encodeToString(temp, 0);
+
+                return newFixedLengthResponse(Response.Status.OK, "application/json", "{\"status\":\"OK\",\"bytes\":'" + temoBase + "'}");
+
+            } catch (Exception ex) {
+                return newFixedLengthResponse(Response.Status.EXPECTATION_FAILED, "application/json", "{\"status\":\"FAIL\",\"msg\":\"" + ex.getLocalizedMessage() + "\"}");
+            } finally {
+                Closer.close(fileInputStream);
+            }
         } else if (uri.startsWith("/map")) {
 
             Sampler[][] grid = new Sampler[mapTransfer.getRows()][mapTransfer.getColumns()];
@@ -158,20 +197,20 @@ public class InfoServer extends NanoHTTPD {
             try {
                 fileInputStream = new FileInputStream(Environment.getExternalStorageDirectory().getAbsolutePath() + "/framebuffer.raw");
 
-                byte [] temp = new byte [3];
+                byte[] temp = new byte[3];
 
                 fileInputStream.skip(mapTransfer.getStartingOffset());
 
-                final int rows = mapTransfer.getRows();
-                final int columns = mapTransfer.getColumns();
-                final int blockSize = mapTransfer.getBlockSize();
+                final int rows           = mapTransfer.getRows();
+                final int columns        = mapTransfer.getColumns();
+                final int blockSize      = mapTransfer.getBlockSize();
                 final int blockStartSkip = mapTransfer.getPreSkip();
-                final int blockEndSkip = mapTransfer.getPostSkip();
+                final int blockEndSkip   = mapTransfer.getPostSkip();
 
                 int sampleCount = 0;
 
                 final int middleStart = (columns / 2) - 1;
-                final int middleEnd = middleStart + 2;
+                final int middleEnd   = middleStart + 2;
 
                 for (int y = 0; y < rows; y++) {
                     for (int z = 0; z < blockSize; z += mapTransfer.getRowSkip()) {
@@ -186,7 +225,7 @@ public class InfoServer extends NanoHTTPD {
                                 }
                                 if (blockStartSkip > 0) fileInputStream.skip(blockStartSkip);
                                 fileInputStream.read(temp);
-                                grid[y][x].add((0xff & temp[0]),(0xff & temp[1]),(0xff & temp[2]));
+                                grid[y][x].add((0xff & temp[0]), (0xff & temp[1]), (0xff & temp[2]));
                                 if (blockEndSkip > 0) fileInputStream.skip(blockEndSkip);
                                 if (x == 0 && y == 0) {
                                     sampleCount++;
@@ -208,11 +247,11 @@ public class InfoServer extends NanoHTTPD {
                             sb.append("?");
                             continue;
                         }
-                        if((grid[y][x].getR() / (samples)) > 128) {
+                        if ((grid[y][x].getR() / (samples)) > 128) {
                             sb.append("R");
-                        } else if((grid[y][x].getG() / (samples)) > 128) {
+                        } else if ((grid[y][x].getG() / (samples)) > 128) {
                             sb.append("G");
-                        } else if((grid[y][x].getB() / (samples)) > 128) {
+                        } else if ((grid[y][x].getB() / (samples)) > 128) {
                             sb.append("B");
                         } else {
                             sb.append("#");
@@ -232,9 +271,16 @@ public class InfoServer extends NanoHTTPD {
         return super.serve(session);
     }
 
-    public boolean within(int source, int test, int range) {
+    public String getParameter (String name, String defaultValue, Map<String, List<String>> parameters) {
+        if (parameters == null || parameters.isEmpty()) return defaultValue;
+        List<String> values = parameters.get(name);
+        if (values == null || values.isEmpty()) return defaultValue;
+        return values.get(0).trim();
+    }
+
+    public boolean within (int source, int test, int range) {
         int a = source - test;
         if (a < 0) a *= -1;
-        return  a <= range;
+        return a <= range;
     }
 }
