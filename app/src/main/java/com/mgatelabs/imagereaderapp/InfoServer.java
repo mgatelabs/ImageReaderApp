@@ -40,6 +40,8 @@ public class InfoServer extends NanoHTTPD {
         mapTransfer = null;
     }
 
+    private static final int SAMPLE_SIZE = 3;
+
     @Override
     public Response serve (IHTTPSession session) {
 
@@ -99,19 +101,39 @@ public class InfoServer extends NanoHTTPD {
 
                 byte[] temp = new byte[3];
                 int    len;
+                int remainingStates = success.length;
+                boolean sampleRead = false;
+                int extraRead = 0;
+
                 for (PointTransfer pointTransfer : stateTransfer.getPoints()) {
 
                     if (pointTransfer.getOffset() > 0) {
-                        fileInputStream.skip(pointTransfer.getOffset());
-                        len = fileInputStream.read(temp);
-                        if (len != 3) {
-                            throw new RuntimeException("Invalid byte read");
-                        }
+                        fileInputStream.skip(pointTransfer.getOffset() + extraRead);
+                        sampleRead = false;
+                        extraRead = SAMPLE_SIZE;
+
                     }
 
                     if (!success[pointTransfer.getIndex()]) continue;
 
+                    if (!sampleRead) {
+                        len = fileInputStream.read(temp);
+                        if (len != SAMPLE_SIZE) {
+                            throw new RuntimeException("Invalid byte read");
+                        }
+                        sampleRead = true;
+                        extraRead = 0;
+                    }
+
                     success[pointTransfer.getIndex()] &= (within((0xff) & temp[0], (0xff) & pointTransfer.getA(), 6) && within((0xff) & temp[1], (0xff) & pointTransfer.getB(), 6) && within((0xff) & temp[2], (0xff) & pointTransfer.getC(), 6));
+
+                    if (!success[pointTransfer.getIndex()]) {
+                        remainingStates--;
+                    }
+
+                    if (remainingStates <= 0) {
+                        break;
+                    }
 
                     if (pointTransfer.getIndex() == debugIndex) {
 
