@@ -14,7 +14,7 @@ public class MainActivity extends Activity {
     private InfoServer infoServer;
 
     @Override
-    protected void onCreate (Bundle savedInstanceState) {
+    protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
@@ -24,14 +24,14 @@ public class MainActivity extends Activity {
     }
 
     @Override
-    protected void onStart () {
+    protected void onStart() {
         super.onStart();
 
         checkPermission("android.permission.READ_EXTERNAL_STORAGE");
         checkPermission("android.permission.INTERNET");
 
         try {
-            infoServer = new InfoServer(8080);
+            infoServer = new InfoServer(8080, getContentResolver(), this);
         } catch (IOException e) {
             e.printStackTrace();
         }

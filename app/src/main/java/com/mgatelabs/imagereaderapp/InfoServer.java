@@ -1,5 +1,7 @@
 package com.mgatelabs.imagereaderapp;
 
+import android.content.ContentResolver;
+import android.content.Context;
 import android.os.Environment;
 import android.util.Base64;
 import android.util.Log;
@@ -28,33 +30,37 @@ import fi.iki.elonen.NanoHTTPD;
 public class InfoServer extends NanoHTTPD {
 
     final ObjectMapper objectMapper;
+    private final ContentResolver contentResolver;
+    private final Context context;
 
     MapTransfer mapTransfer;
     Map<String, StateTransfer> states;
 
-    public InfoServer (int port) throws IOException {
+    public InfoServer(int port, ContentResolver contentResolver, Context context) throws IOException {
         super(port);
         start(5000, true);
         objectMapper = new ObjectMapper();
         states = null;
         mapTransfer = null;
+        this.contentResolver = contentResolver;
+        this.context = context;
     }
 
     private static final int SAMPLE_SIZE = 3;
 
     @Override
-    public Response serve (IHTTPSession session) {
+    public Response serve(IHTTPSession session) {
 
         String uri = session.getUri();
 
         if (uri.equals("/setup")) {
             ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
-            InputStream           inputStream           = session.getInputStream();
+            InputStream inputStream = session.getInputStream();
 
             int contentLength = Integer.parseInt(session.getHeaders().get("content-length"));
 
             byte[] buffer = new byte[1024];
-            int    len;
+            int len;
             try {
                 while (byteArrayOutputStream.size() < contentLength) {
                     len = inputStream.read(buffer);
@@ -77,10 +83,10 @@ public class InfoServer extends NanoHTTPD {
                 return newFixedLengthResponse(Response.Status.EXPECTATION_FAILED, "application/json", "{\"status\":\"FAIL\",\"msg\":\"" + "please run /setup first" + "\"}");
             }
 
-            int    debugIndex = -1;
-            String debugName  = getParameter("screen-id", "", session.getParameters());
+            int debugIndex = -1;
+            String debugName = getParameter("screen-id", "", session.getParameters());
 
-            String        stateId       = session.getUri().substring(7);
+            String stateId = session.getUri().substring(7);
             StateTransfer stateTransfer = states.get(stateId);
 
             if (stateTransfer == null) {
@@ -88,7 +94,7 @@ public class InfoServer extends NanoHTTPD {
             }
 
             FileInputStream fileInputStream = null;
-            boolean[]       success         = new boolean[stateTransfer.getScreenIds().size()];
+            boolean[] success = new boolean[stateTransfer.getScreenIds().size()];
             for (int i = 0; i < success.length; i++) {
                 if (debugName.length() > 0 && stateTransfer.getScreenIds().get(i).equalsIgnoreCase(debugName)) {
                     debugIndex = i;
@@ -100,7 +106,7 @@ public class InfoServer extends NanoHTTPD {
                 fileInputStream = new FileInputStream(Environment.getExternalStorageDirectory().getAbsolutePath() + "/framebuffer.raw");
 
                 byte[] temp = new byte[3];
-                int    len;
+                int len;
                 int remainingStates = success.length;
                 boolean sampleRead = false;
                 int extraRead = 0;
@@ -151,7 +157,7 @@ public class InfoServer extends NanoHTTPD {
             }
 
             StringBuilder successList = new StringBuilder();
-            int           i           = 0;
+            int i = 0;
             for (int j = 0; j < success.length; j++) {
                 if (success[j]) {
                     if (i > 0) successList.append(",");
@@ -163,7 +169,7 @@ public class InfoServer extends NanoHTTPD {
             return newFixedLengthResponse(Response.Status.OK, "application/json", "{\"status\":\"OK\",\"screens\":[" + successList + "]}");
         } else if (uri.startsWith("/pixel/")) {
             String pixelValue = session.getUri().substring(7);
-            int    offset     = Integer.parseInt(pixelValue);
+            int offset = Integer.parseInt(pixelValue);
 
             FileInputStream fileInputStream = null;
 
@@ -171,7 +177,7 @@ public class InfoServer extends NanoHTTPD {
                 fileInputStream = new FileInputStream(Environment.getExternalStorageDirectory().getAbsolutePath() + "/framebuffer.raw");
 
                 byte[] temp = new byte[3];
-                int    len;
+                int len;
 
                 fileInputStream.skip(offset);
                 len = fileInputStream.read(temp);
@@ -223,16 +229,16 @@ public class InfoServer extends NanoHTTPD {
 
                 fileInputStream.skip(mapTransfer.getStartingOffset());
 
-                final int rows           = mapTransfer.getRows();
-                final int columns        = mapTransfer.getColumns();
-                final int blockSize      = mapTransfer.getBlockSize();
+                final int rows = mapTransfer.getRows();
+                final int columns = mapTransfer.getColumns();
+                final int blockSize = mapTransfer.getBlockSize();
                 final int blockStartSkip = mapTransfer.getPreSkip();
-                final int blockEndSkip   = mapTransfer.getPostSkip();
+                final int blockEndSkip = mapTransfer.getPostSkip();
 
                 int sampleCount = 0;
 
                 final int middleStart = (columns / 2) - 1;
-                final int middleEnd   = middleStart + 2;
+                final int middleEnd = middleStart + 2;
 
                 for (int y = 0; y < rows; y++) {
                     for (int z = 0; z < blockSize; z += mapTransfer.getRowSkip()) {
@@ -293,14 +299,14 @@ public class InfoServer extends NanoHTTPD {
         return super.serve(session);
     }
 
-    public String getParameter (String name, String defaultValue, Map<String, List<String>> parameters) {
+    public String getParameter(String name, String defaultValue, Map<String, List<String>> parameters) {
         if (parameters == null || parameters.isEmpty()) return defaultValue;
         List<String> values = parameters.get(name);
         if (values == null || values.isEmpty()) return defaultValue;
         return values.get(0).trim();
     }
 
-    public boolean within (int source, int test, int range) {
+    public boolean within(int source, int test, int range) {
         int a = source - test;
         if (a < 0) a *= -1;
         return a <= range;
