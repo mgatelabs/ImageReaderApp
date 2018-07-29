@@ -15,6 +15,7 @@ import com.mgatelabs.imagereaderapp.shared.Sampler;
 import com.mgatelabs.imagereaderapp.shared.StateTransfer;
 
 import java.io.ByteArrayOutputStream;
+import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -38,7 +39,7 @@ public class InfoServer extends NanoHTTPD {
 
     public InfoServer(int port, ContentResolver contentResolver, Context context) throws IOException {
         super(port);
-        start(5000, true);
+        start(25000, true);
         objectMapper = new ObjectMapper();
         states = null;
         mapTransfer = null;
@@ -193,7 +194,16 @@ public class InfoServer extends NanoHTTPD {
                 Closer.close(fileInputStream);
             }
 
-        } else if (uri.startsWith("/head")) {
+        } else if (uri.startsWith("/download")) {
+            FileInputStream fileInputStream = null;
+            try {
+                File path = new File(Environment.getExternalStorageDirectory().getAbsolutePath() + "/framebuffer.raw");
+                fileInputStream = new FileInputStream(path);
+                return newFixedLengthResponse(Response.Status.OK, "application/octet-stream", fileInputStream, path.length());
+            } catch (Exception ex) {
+                return newFixedLengthResponse(Response.Status.EXPECTATION_FAILED, "application/json", "{\"status\":\"FAIL\",\"msg\":\"" + ex.getLocalizedMessage() + "\"}");
+            }
+        }else if (uri.startsWith("/head")) {
             FileInputStream fileInputStream = null;
             try {
                 fileInputStream = new FileInputStream(Environment.getExternalStorageDirectory().getAbsolutePath() + "/framebuffer.raw");
@@ -208,8 +218,6 @@ public class InfoServer extends NanoHTTPD {
 
             } catch (Exception ex) {
                 return newFixedLengthResponse(Response.Status.EXPECTATION_FAILED, "application/json", "{\"status\":\"FAIL\",\"msg\":\"" + ex.getLocalizedMessage() + "\"}");
-            } finally {
-                Closer.close(fileInputStream);
             }
         } else if (uri.startsWith("/map")) {
 
