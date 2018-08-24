@@ -211,7 +211,17 @@ public class InfoServer extends NanoHTTPD {
             } finally {
                 Closer.close(fileInputStream);
             }
-        } else if (uri.startsWith("/map")) {
+        } else if (uri.startsWith("/file")) {
+            FileInputStream fileInputStream = null;
+            try {
+                fileInputStream = new FileInputStream(Environment.getExternalStorageDirectory().getAbsolutePath() + "/framebuffer.raw");
+                return newChunkedResponse(Response.Status.OK, "application/octet-stream", fileInputStream);
+            } catch (Exception ex) {
+                return newFixedLengthResponse(Response.Status.EXPECTATION_FAILED, "application/json", "{\"status\":\"FAIL\",\"msg\":\"" + ex.getLocalizedMessage() + "\"}");
+            } finally {
+                Closer.close(fileInputStream);
+            }
+        }else if (uri.startsWith("/map")) {
 
             Sampler[][] grid = new Sampler[mapTransfer.getRows()][mapTransfer.getColumns()];
 
