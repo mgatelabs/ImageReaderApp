@@ -1,13 +1,13 @@
 # ImageReaderApp
-Android application for speeding up TMR farming with FFBExecute.
+Android application for speeding up processing with FFBExecute.
+
+# Is it needed?
+
+Yes, FFBExecute has been re-written to explicitly need this in order to execute correctly over a Wi-Fi connection.
 
 # What does it do?
 
 This app sits in the background listening on port 8080 for the following commands:
-
-## Is it needed?
-
-Technically, the helper is not needed, but without the helper, it will take typically 2 seconds to grab the screen.  With the helper, it can grab the screen in under 0.25 seconds.
 
 ## /setup
 Push configuration details over to the app
@@ -15,10 +15,13 @@ Push configuration details over to the app
 * Map reading details
 
 ## /check/{stateId}
-Determine if the saved framebuffer matches any known image states
+Determine if the saved framebuffer matches any known views for the given state
 
 ## /pixel/{offset}
 Read a single pixel from the raw image
+
+## /download
+Return the raw image for further processing
 
 ## /map
 This will read the screen and create a map definition of what it sees.
