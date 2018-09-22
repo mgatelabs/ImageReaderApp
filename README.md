@@ -1,9 +1,9 @@
-# ImageReaderApp
-Android application for speeding up processing with FFBExecute.
+# Phone Piper Helper
+Android application for speeding up processing with Phone Piper.
 
 # Is it needed?
 
-Yes, FFBExecute has been re-written to explicitly need this in order to execute correctly over a Wi-Fi connection.
+Yes, Phone Piper has been re-written to explicitly need this in order to execute correctly over a Wi-Fi connection.
 
 # What does it do?
 
